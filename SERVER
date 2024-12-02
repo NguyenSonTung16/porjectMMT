@@ -105,13 +105,15 @@ print("Waiting for client")
 try:
     conn, adr = s.accept()
     print("client address:", adr)
-    msg = "aaaaaa"
+    msg = ""
     file_name=None
     file_size=None
     while msg != "end":
         msg = conn.recv(1024).decode(FORMAT)  # Nhận thông điệp từ client
         print("Client gửi: ", msg)
         if msg == "upload":
+            Numfiles=int(conn.recv(1024).decode(FORMAT))
+            for i in range(Numfiles):    
                 conn.sendall("Ready to receive file".encode(FORMAT))
                 file_name = received_prop_filename(conn, file_name)
                 file_size = received_prop_filesize(conn, file_size)
@@ -137,4 +139,3 @@ except Exception as e:
     print("Lỗi server:", e)
 finally:
     s.close()
-
