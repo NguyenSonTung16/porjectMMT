@@ -1,0 +1,140 @@
+from pickle import NONE
+import socket
+import os
+import string
+
+def received_prop_filename(socket, file_name):
+    file_name = conn.recv(1024).decode(FORMAT)
+    conn.sendall(f"Received file name: {file_name}".encode(FORMAT))
+    print(f"Tên file nhận được: {file_name}")
+    return file_name
+def received_prop_filesize(conn, file_size):
+    # Nhận kích thước file
+    file_size = int(conn.recv(1024).decode(FORMAT))
+    print(f"Kích thước file nhận được: {file_size} bytes")
+    return file_size
+
+
+def check_exist_file_on_server(file_name, file_size):
+    #check file da ton tai tren server chua
+    if not os.path.exists(file_name):
+        return 1
+    else:
+        return 2
+          
+                    
+def received_data_server(case, socket, file_name, file_size):
+    
+    if case==1: 
+        socket.sendall("TH1".encode(FORMAT))
+        # # Lưu file với tên gốc
+        with open(file_name, "wb") as f:
+            received = 0
+            while received < file_size:
+                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
+                if not chunk:
+                    break
+                f.write(chunk)
+                received += len(chunk)
+                percent=received/file_size*100
+                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
+        print(f"File {file_name} đã được lưu thành công.")
+    elif case==2:
+        print("Có file bị trùng lặp đang chờ phản hồi của Client")
+        socket.sendall("TH2".encode(FORMAT))
+        msg=socket.recv(1024).decode(FORMAT)
+        print("client phản hồi: ",msg)
+        if msg=="overwrite":
+            with open(file_name, "wb") as f:
+                received = 0
+                while received < file_size:
+                    chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    received += len(chunk)
+                    percent=received/file_size*100
+                    print(f"Đã nhận {received}/{file_size} bytes {percent}%")        
+                    print(f"File {file_name} đã được lưu thành công.") 
+def send_prop(socket, file_name, file_size):
+        print(f"Tên file: {file_name}, Kích thước: {file_size} bytes")
+        # Gửi tên file trước
+        socket.sendall(file_name.encode(FORMAT))
+        server_msg = socket.recv(1024).decode(FORMAT)  # Nhận phản hồi
+        print("SERVER TRA LOI:", server_msg)
+        # Gửi kích thước file
+        socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
+def send_data(socket, file_name, file_size):
+    with open(file_name, mode='rb') as f:
+        send=0
+        while True:  # Vòng lặp vô hạn
+            # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
+            chunk = f.read(1024)
+                        
+            # Nếu chunk rỗng (tức đã đọc hết file), thoát khỏi vòng lặp
+            if not chunk:
+                break
+                    
+             #Nếu chunk không rỗng -> Gửi khối dữ liệu hiện tại qua socket
+            socket.sendall(chunk)
+            send+=len(chunk)
+            percent=send/file_size*100
+            print(f"Đã tải {send}/{file_size} bytes {percent}%")
+                # In thông báo sau khi toàn bộ file đã được gửi
+    print("Đã gửi file thành công.")  
+    f.close()
+
+
+
+
+
+
+
+
+HOST = "127.0.0.1"
+SERVER_PORT = 65432
+FORMAT = "utf8"
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, SERVER_PORT))
+s.listen()
+print("SERVER SIDE")
+print("server", HOST, SERVER_PORT)
+print("Waiting for client")
+
+try:
+    conn, adr = s.accept()
+    print("client address:", adr)
+    msg = "aaaaaa"
+    file_name=None
+    file_size=None
+    while msg != "end":
+        msg = conn.recv(1024).decode(FORMAT)  # Nhận thông điệp từ client
+        print("Client gửi: ", msg)
+        if msg == "upload":
+                conn.sendall("Ready to receive file".encode(FORMAT))
+                file_name = received_prop_filename(conn, file_name)
+                file_size = received_prop_filesize(conn, file_size)
+                case = check_exist_file_on_server(file_name, file_size)
+                received_data_server(case, conn, file_name, file_size)
+        elif msg == "download":
+            dowload_path = conn.recv(1024).decode(FORMAT)
+            if not os.path.exists(dowload_path):
+                conn.sendall("ERROR".encode(FORMAT))
+                continue
+            else:
+                conn.sendall("GOOD".encode(FORMAT))
+        
+            file_size = os.path.getsize(dowload_path)
+            conn.sendall(str(file_size).encode(FORMAT))
+        
+            print(f"Tên file: {dowload_path}, Kích thước: {file_size} bytes")
+            file_name = os.path.basename(dowload_path) 
+            send_data(conn, file_name, file_size)
+            continue
+
+except Exception as e:
+    print("Lỗi server:", e)
+finally:
+    s.close()
+
