@@ -12,9 +12,11 @@ def upload_file(file_paths, socket, button_notice):
     socket.sendall(msg.encode(FORMAT))
 
     try:
-        for file_path in file_paths:
-            file_name = os.path.basename(file_path)
-            file_size = os.path.getsize(file_path)
+        numfiles=len(file_paths)
+        socket.sendall(str(numfiles).encode(FORMAT))
+        for i in range(numfiles):
+            file_name = os.path.basename(file_paths[i])
+            file_size = os.path.getsize(file_paths[i])
             
             # Gửi tên file
             socket.sendall(file_name.encode(FORMAT))
@@ -26,7 +28,7 @@ def upload_file(file_paths, socket, button_notice):
 
             # Gửi dữ liệu file
             percent = 0
-            with open(file_path, "rb") as f:
+            with open(file_paths[i], "rb") as f:
                 send = 0
                 while True:
                     chunk = f.read(1024)
@@ -39,8 +41,8 @@ def upload_file(file_paths, socket, button_notice):
             print(f"Đã gửi file {file_name} thành công.")
             # Đợi server xử lý xong file này trước khi gửi file tiếp theo
             socket.recv(1024)  # Nhận phản hồi từ server để tiếp tục gửi file kế tiếp
-        # Sau khi gửi tất cả các file, gửi thông điệp "end" để kết thúc
-        # socket.sendall("end".encode(FORMAT))
+            if i==numfiles-1:
+                print("Đã gửi toàn bộ file")
         print("Tất cả các file đã được gửi thành công.")
         
     except Exception as e:
