@@ -1,0 +1,280 @@
+import socket
+import time
+import os
+import tkinter as tk
+from tkinter import filedialog
+HOST = "127.0.0.1"
+SERVER_PORT = 65432
+FORMAT = "utf8"
+def upload_file(file_paths, socket, button_notice):
+    # Gửi file lên server
+    msg = "upload"
+    socket.sendall(msg.encode(FORMAT))
+    socket.recv(1024)
+    try:
+        numfiles=len(file_paths)
+        # print(numfiles)
+        socket.sendall(str(numfiles).encode(FORMAT))
+        socket.recv(1024)
+        for i in range(numfiles):
+            file_name = os.path.basename(file_paths[i])
+            file_size = os.path.getsize(file_paths[i])
+            
+            # Gửi tên file
+            socket.sendall(file_name.encode(FORMAT))
+            socket.recv(1024)  # Nhận phản hồi từ server
+            
+            # Gửi kích thước file
+            socket.sendall(str(file_size).encode(FORMAT))
+            socket.recv(1024)  # Nhận phản hồi từ server để xác nhận kích thước
+
+            # Gửi dữ liệu file
+            percent = 0
+            with open(file_paths[i], "rb") as f:
+                send = 0
+                while True:
+                    chunk = f.read(1024)
+                    if not chunk:
+                        break
+                    socket.sendall(chunk)
+                    send += len(chunk)
+                    percent = send / file_size * 100
+                    #button_notice.config(text=f" {percent:.2f}%", fg="red")
+            print(f"Đã gửi file {file_name} thành công.")
+            # Đợi server xử lý xong file này trước khi gửi file tiếp theo
+            socket.recv(1024)  # Nhận phản hồi từ server để tiếp tục gửi file kế tiếp
+            if i==numfiles-1:
+                print("Đã gửi toàn bộ file")
+        print("Tất cả các file đã được gửi thành công.")
+        
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+
+
+def uploadbuttoncheck(socket):
+    # Tạo cửa sổ mới cho tính năng upload
+    upload_window = tk.Toplevel()
+    upload_window.title("Upload File")
+    upload_window.geometry("400x300")
+    # Tiêu đề cho cửa sổ upload
+    label_upload = tk.Label(upload_window, text="Upload File", font=("Arial", 20))
+    label_upload.pack(pady=20)
+    file_paths=filedialog.askopenfilenames(title="Chọn file",filetypes=(("All files", "*.*"),)) #Mở browse file để chọn file muốn upload
+    for file_path in file_paths:
+        file_name=os.path.basename(file_path) #lấy tên file muốn upload từ địa chỉ của file đó
+        label_filepath = tk.Label(upload_window, text=file_name, font=("Arial", 16))
+        label_filepath.pack(pady=10)
+    # Nút upload
+    button_notice=tk.Label(upload_window,text="")
+    button_confirm_upload = tk.Button(upload_window,text="Upload",font=("Arial", 14),command=lambda:upload_file(file_paths,socket,button_notice))
+    button_confirm_upload.pack(pady=20)
+    # Nút đóng cửa sổ
+    button_close = tk.Button(upload_window,text="Close",font=("Arial", 14),command=upload_window.destroy)
+    button_close.pack(pady=10)
+    button_notice.pack(pady=10)
+    
+    
+def downloadbuttoncheck():
+    # Tạo cửa sổ mới cho tính năng upload
+    download_window = tk.Toplevel()
+    download_window.title("Upload File")
+    download_window.geometry("400x300")
+
+    # Tiêu đề cho cửa sổ upload
+    label_download = tk.Label(download_window, text="Upload File", font=("Arial", 20))
+    label_download.pack(pady=20)
+
+    # Ô nhập đường dẫn file
+    label_filepath = tk.Label(download_window, text="File Path:", font=("Arial", 14))
+    label_filepath.pack(pady=10)
+    entry_filepath = tk.Entry(download_window, width=30, font=("Arial", 14))
+    entry_filepath.pack(pady=10)
+
+    # Nút upload
+    button_confirm_upload = tk.Button(download_window,text="Upload",font=("Arial", 14))
+    button_confirm_upload.pack(pady=20)
+
+    # Nút đóng cửa sổ
+    button_close = tk.Button(download_window,text="Close",font=("Arial", 14),command=download_window.destroy)
+    button_close.pack(pady=10)
+    
+def check_account(inputusername,inputpassword):
+    account_name=inputusername.get()
+    account_password=inputpassword.get()
+    with open('account.txt','r') as file: #Mở file "account.txt" trong chế độ đọc với lệnh file để đảm bảo file sẽ đóng sao khi thực hiện
+        check_legit=False
+        for line in file:
+            accountdetails=line.strip() #xóa các kí tự thừa ở đầu và cuối dòng
+            accountdetails=accountdetails.split()
+            if account_name in line and accountdetails[1]==account_password: #kiểm tra username có nằm ở dòng hiện tại không,nếu có thì kiểm tra mật khẩu
+                check_legit=True
+                break
+        return check_legit
+def connect_to_server(socket):
+    try:
+        
+        socket.connect((HOST, SERVER_PORT))
+        print("Client connected to server")
+        return 1
+    except Exception as e:
+        print(f"Error connecting to server: {e}") 
+        return 0
+def check_login(socket):
+    username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
+    password=inputpassword.get()  #lấy thông tin nhập vào của ô nhập password
+    if(check_account(inputusername,inputpassword)==True):
+            print("xam lon")    
+            connected = connect_to_server(socket)
+            if connected == 1:
+                socket.sendall(username.encode(FORMAT))
+                window.destroy() #Xóa cửa sổ đang nhập
+                newwindow=tk.Tk() #Tạo cửa sổ mới 
+                newwindow.title("Menu")
+                newwindow.geometry("600x400")
+                button_uploadfile=tk.Button(newwindow,text="Upload file",width=20,font=("Arial",20),command=lambda:uploadbuttoncheck(client))
+                button_uploadfile.pack(pady=10);
+                button_downloadfile=tk.Button(newwindow,text="Download file",width=20,font=("Arial",20),command=lambda:downloadbuttoncheck)
+                button_downloadfile.pack(pady=10)
+            else:
+                label_error.config(text="Fail to connect to server", fg="red")
+   
+    else:
+        label_error.config(text="Invalid username or password", fg="red") #thay đổi tiêu đề in lỗi khi username hoặc password không đúng
+                     
+         
+def check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line):
+    newusername=signup_inputusername.get()
+    newpassword= signup_inputpassword.get()
+    confirm_password = signup_confirminputpassword.get()  
+    if newpassword != confirm_password:
+        error_line.config(text="Passwords do not match", fg="red")
+        return
+    with open('account.txt','r') as file:
+        check_username=False
+        check_password=False
+        for line in file:
+            accountdetails=line.strip() 
+            accountdetails=accountdetails.split()
+            # Kiểm tra xem tên tài khoản đã tồn tại chưa
+            if newusername == accountdetails[0]:
+                check_username = True
+            # Kiểm tra mật khẩu đã tồn tại cho tên tài khoản này chưa
+            if newpassword == accountdetails[1]:
+                check_password = True
+        if check_username==True:
+            error_line.config(text="Username already exists", fg="red")
+        elif check_password==True:
+            error_line.config(text="Password already exists", fg="red")
+        elif  check_username==True and  check_password==True:
+            error_line.config(text="Username and Password already exists", fg="red")
+        else:
+            error_line.config(text="Account created successfully", fg="green")
+            with open('account.txt', 'a') as file:                 #Mở file và lưu tài khoản vừa tạo vào file
+                file.write(f"{newusername} {newpassword}\n")
+                
+def check_signup():
+    signup_win=tk.Tk()
+    signup_win.title("Sign Up")
+    signup_win.geometry("600x400")
+    signup_username=tk.Label(signup_win,text="username",font=("Arial", 20)) #tiêu đề của ô username
+    signup_username.pack() #in tiêu đề lên cửa sổ
+    signup_inputusername=tk.Entry(signup_win,width=16,font=("Arial",20)) #Ô nhập username
+    signup_inputusername.pack() #in ô nhập username lên cửa sổ
+    signup_password=tk.Label(signup_win,text="Password",font=("Arial",20)) #tiêu đề của ô mật khẩu
+    signup_password.pack(pady=10) #in tiêu đề của ô mật khẩu
+    signup_inputpassword=tk.Entry(signup_win,width=16,font=("Arial",20)) #Ô nhập mật khẩu
+    signup_inputpassword.pack(pady=10) #in ô nhập mật khẩu lên cửa sổ
+    signup_confirmpassword=tk.Label(signup_win,text=" Confirm password",font=("Arial",20)) #tiêu đề của ô mật khẩu
+    signup_confirmpassword.pack(pady=10) #in tiêu đề của ô mật khẩu
+    signup_confirminputpassword=tk.Entry(signup_win,width=16,font=("Arial",20)) #Ô nhập mật khẩu
+    signup_confirminputpassword.pack(pady=10) #in ô nhập mật khẩu lên cửa sổ
+    error_line=tk.Label(signup_win,text="",font=("Arial",14))
+    error_line.pack(pady=10)
+    Confirm_button=tk.Button(signup_win,text="Confirm",width=16,height=1, font=("Arial", 14),command=lambda:check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line))
+    Confirm_button.pack()
+window=tk.Tk()
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#client.connect((HOST, SERVER_PORT))
+window.title("Sever")
+window.geometry("600x400")
+label_username=tk.Label(window,text="username",font=("Arial", 20)) #tiêu đề của ô username
+label_username.pack() #in tiêu đề lên cửa sổ
+inputusername=tk.Entry(window,width=16,font=("Arial",20)) #Ô nhập username
+inputusername.pack() #in ô nhập username lên cửa sổ
+label_password=tk.Label(window,text="Password",font=("Arial",20)) #tiêu đề của ô mật khẩu
+label_password.pack(pady=10) #in tiêu đề của ô mật khẩu
+inputpassword=tk.Entry(window,width=16,font=("Arial",20)) #Ô nhập mật khẩu
+inputpassword.pack(pady=10) #in ô nhập mật khẩu lên cửa sổ
+loginbutton=tk.Button(window,text="Login",width=16,height=1, font=("Arial", 14),command=lambda:check_login(client)) #Nút đăng nhập
+loginbutton.pack(pady=10) # in nút đăng nhập lên cửa sổ,nút "login" cách 1 khoảng 10 dưới label "username"
+signupbutton=tk.Button(window,text="Sign up",width=16,height=1,font=("Arial",14),command=lambda:check_signup()) #nút tạo tài khoản mới
+signupbutton.pack(pady=10)
+label_error = tk.Label(window, text="", font=("Arial", 14), fg="red")  #tiêu đề in ra khi có lỗi(để rỗng khi chưa có gì)
+label_error.pack(pady=10)
+window.mainloop() #khởi chạy giao diện
+client.sendall("end".encode(FORMAT))
+client.close()
+
+def received_prop_filename(socket, file_name):
+    file_name = socket.recv(1024).decode(FORMAT)
+    socket.sendall(f"Received file name: {file_name}".encode(FORMAT))
+    print(f"Tên file nhận được: {file_name}")
+    return file_name
+def received_prop_filesize(socket, file_size):
+    # Nhận kích thước file
+    file_size = int(socket.recv(1024).decode(FORMAT))
+    print(f"Kích thước file nhận được: {file_size} bytes")
+    return file_size
+
+
+def check_exist_file_on_server(file_name, file_size):
+    #check file da ton tai tren server chua
+    if not os.path.exists(file_name):
+        return 1
+    else:
+        return 2
+          
+                    
+def received_data_client( socket, file_name, file_size):
+        # # Lưu file với tên gốc
+        with open(file_name, "wb") as f:
+            received = 0
+            while received < file_size:
+                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
+                if not chunk:
+                    break
+                f.write(chunk)
+                received += len(chunk)
+                percent=received/file_size*100
+                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
+        print(f"File {file_name} đã được lưu thành công.")
+        f.close()
+                    
+def send_prop(socket, file_name, file_size):
+        print(f"Tên file: {file_name}, Kích thước: {file_size} bytes")
+        # Gửi tên file trước
+        socket.sendall(file_name.encode(FORMAT))
+        server_= socket.recv(1024).decode(FORMAT)  # Nhận phản hồi
+        print("SERVER TRA LOI:", server_)               
+        # Gửi kích thước file
+        socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
+def send_data(socket, file_path, file_size):
+    with open(file_path, mode='rb') as f:
+        send=0
+        while True:  # Vòng lặp vô hạn
+            # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
+            chunk = f.read(1024)
+                        
+            # Nếu chunk rỗng (tức đã đọc hết file), thoát khỏi vòng lặp
+            if not chunk:
+                break
+                    
+             #Nếu chunk không rỗng -> Gửi khối dữ liệu hiện tại qua socket
+            socket.sendall(chunk)
+            send+=len(chunk)
+            percent=send/file_size*100
+            print(f"Đã tải {send}/{file_size} bytes {percent}%")
+                # In thông báo sau khi toàn bộ file đã được gửi
+    print("Đã gửi file thành công.")
+    f.close()
+
