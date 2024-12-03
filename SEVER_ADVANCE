@@ -1,0 +1,147 @@
+
+
+from pickle import NONE
+import socket
+import os
+import string
+import threading
+def received_prop_filename(socket, file_name):
+    file_name = conn.recv(1024).decode(FORMAT)
+    conn.sendall(f"Received file name: {file_name}".encode(FORMAT))
+    print(f"Tên file nhận được: {file_name}")
+    return file_name
+def received_prop_filesize(conn, file_size):
+    # Nhận kích thước file
+    file_size = int(conn.recv(1024).decode(FORMAT))
+    conn.sendall(f"Received file size: {file_size}".encode(FORMAT))
+    print(f"Kích thước file nhận được: {file_size} bytes")
+    return file_size
+
+
+def check_exist_file_on_server(file_name, file_size):
+    #check file da ton tai tren server chua
+    if not os.path.exists(file_name):
+        return 1
+    else:
+        return 2
+          
+                    
+def received_data_server( socket, file_name, file_size,folder_username):
+        file_save_path="D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"+folder_username+"//"+file_name    
+        # # Lưu file với tên gốc
+        with open(file_save_path, "wb") as f:
+            received = 0
+            while received < file_size:
+                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
+                if not chunk:
+                    break
+                f.write(chunk)
+                received += len(chunk)
+                percent=received/file_size*100
+                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
+        print(f"File {file_name} đã được lưu thành công.")
+        conn.sendall("đã được lưu thành công".encode(FORMAT))
+def send_prop(socket, file_name, file_size):
+        print(f"Tên file: {file_name}, Kích thước: {file_size} bytes")
+        # Gửi tên file trước
+        socket.sendall(file_name.encode(FORMAT))
+        server_msg = socket.recv(1024).decode(FORMAT)  # Nhận phản hồi
+        print("SERVER TRA LOI:", server_msg)
+        # Gửi kích thước file
+        socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
+def send_data(socket, file_name, file_size):
+    with open(file_name, mode='rb') as f:
+        send=0
+        while True:  # Vòng lặp vô hạn
+            # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
+            chunk = f.read(1024)
+                        
+            # Nếu chunk rỗng (tức đã đọc hết file), thoát khỏi vòng lặp
+            if not chunk:
+                break
+                    
+             #Nếu chunk không rỗng -> Gửi khối dữ liệu hiện tại qua socket
+            socket.sendall(chunk)
+            send+=len(chunk)
+            percent=send/file_size*100
+            print(f"Đã tải {send}/{file_size} bytes {percent}%")
+                # In thông báo sau khi toàn bộ file đã được gửi
+    print("Đã gửi file thành công.")  
+    f.close()
+def handle_client(conn, addr):
+    folder_username=conn.recv(1024).decode(FORMAT)
+    try:
+        os.mkdir(folder_username)
+        print(f"Directory '{folder_username}' created successfully.")
+    except FileExistsError:
+        print(f"Directory '{folder_username}' already exists.")
+    except PermissionError:
+        print(f"Permission denied: Unable to create '{folder_username}'.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    print(f"Client connected: {addr}")
+    msg = ""
+    file_name=None
+    file_size=None
+    try:
+        msg = None
+        while msg != "end":
+            msg = conn.recv(1024).decode(FORMAT)
+            print(f"Client {addr} talk: {msg}")
+            if msg == "upload":
+                conn.sendall("Ready to recv file".encode(FORMAT))
+                Numfiles=int(conn.recv(1024).decode(FORMAT))
+                print(Numfiles)
+                conn.sendall("Xac nhan so luong file".encode(FORMAT))
+                for i in range(Numfiles):    
+                    file_name = received_prop_filename(conn, file_name)
+                    file_size = received_prop_filesize(conn, file_size)
+                    received_data_server( conn, file_name, file_size,folder_username)
+                
+            elif msg == "dowload":
+                dowload_path = conn.recv(1024).decode(FORMAT)
+                if not os.path.exists(dowload_path):
+                    conn.sendall("ERROR".encode(FORMAT))
+                else:
+                    conn.sendall("GOOD".encode(FORMAT))
+                    file_size = os.path.getsize(dowload_path)
+                    conn.sendall(str(file_size).encode(FORMAT))
+                    send_data(conn, dowload_path, file_size)
+    
+    except Exception as e:
+        print(f"Lỗi xử lý client {addr}: {e}")
+    finally:
+        conn.close()
+        print(f"Client {addr} disconnected.")
+
+
+
+
+
+
+
+HOST = "127.0.0.1"
+SERVER_PORT = 65432
+FORMAT = "utf8"
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((HOST, SERVER_PORT))
+s.listen()
+print("SERVER SIDE")
+print("server", HOST, SERVER_PORT)
+print("Waiting for client")
+
+try:
+    while True:#vòng lặp để chấp nhận kết nối từ các client
+        conn, addr = s.accept()
+        print(f"Client {addr} connected.")
+        
+        # Tạo một luồng mới để xử lý client
+        client_thread = threading.Thread(target=handle_client, args=(conn, addr)) ##Khi đã có 1 client kết nối tới thì server sẽ tạo 1 luồng mới và mỗi luồng mới sẽ gọi hàm 'handle_client' để xử lí upload/download với 2 tham số tr vào hàm 'handle_client' là args=(conn,addr) vs conn là đối tượng kết nối, addr là địa chỉ client
+        client_thread.start()
+        ##Tiếp tục lắng nghe các kết nối từ các client khác (Vì vòng lặp này là vô tận)
+
+except Exception as e:
+    print("Lỗi server:", e)
+finally:
+    s.close()
