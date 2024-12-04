@@ -3,59 +3,87 @@ import time
 import os
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import ttk
+from turtle import down
 HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
-def upload_file(file_paths, socket, button_notice):
-    # Gửi file lên server
-    msg = "upload"
-    socket.sendall(msg.encode(FORMAT))
-    socket.recv(1024)
-    try:
-        numfiles=len(file_paths)
-        # print(numfiles)
-        socket.sendall(str(numfiles).encode(FORMAT))
+def download_file( socket, file_name,btnnotice,download_window):
+        # # Lưu file với tên gốc
+        socket.sendall("download".encode(FORMAT))
         socket.recv(1024)
-        for i in range(numfiles):
-            file_name = os.path.basename(file_paths[i])
-            file_size = os.path.getsize(file_paths[i])
-            
-            # Gửi tên file
-            socket.sendall(file_name.encode(FORMAT))
-            socket.recv(1024)  # Nhận phản hồi từ server
-            
-            # Gửi kích thước file
-            socket.sendall(str(file_size).encode(FORMAT))
-            socket.recv(1024)  # Nhận phản hồi từ server để xác nhận kích thước
-
-            # Gửi dữ liệu file
-            percent = 0
-            with open(file_paths[i], "rb") as f:
-                send = 0
-                while True:
-                    chunk = f.read(1024)
-                    if not chunk:
-                        break
-                    socket.sendall(chunk)
-                    send += len(chunk)
-                    percent = send / file_size * 100
-                    #button_notice.config(text=f" {percent:.2f}%", fg="red")
-            print(f"Đã gửi file {file_name} thành công.")
-            # Đợi server xử lý xong file này trước khi gửi file tiếp theo
-            socket.recv(1024)  # Nhận phản hồi từ server để tiếp tục gửi file kế tiếp
-            if i==numfiles-1:
-                print("Đã gửi toàn bộ file")
-        print("Tất cả các file đã được gửi thành công.")
+        socket.sendall(file_name.encode(FORMAT))
+        file_size = int(socket.recv(1024).decode(FORMAT))
+        socket.sendall("ok_properties".encode(FORMAT))
         
-    except Exception as e:
-        print(f"Error uploading file: {e}")
+        #Gửi dữ liệu file
+        percent = 0
+        with open(file_name, "wb") as f:
+            received = 0
+            while received < file_size:
+                print("a")
+                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
+                if not chunk:
+                    break
+                f.write(chunk)
+                received += len(chunk)
+                percent=received/file_size*100
+                btnnotice.config(text=f" {percent:.2f}%", fg="red")
+                download_window.update_idletasks()
+                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
+        print(f"File {file_name} đã được lưu thành công.")
+        f.close()
+def upload_file(file_paths, socket, button_notice,upload_window):
+    # Gửi file lên server
+        msg = "upload"
+        socket.sendall(msg.encode(FORMAT))
+        socket.recv(1024)
+        try:
+            numfiles=len(file_paths)
+            # print(numfiles)
+            socket.sendall(str(numfiles).encode(FORMAT))
+            socket.recv(1024)
+            for i in range(numfiles):
+                file_name = os.path.basename(file_paths[i])
+                file_size = os.path.getsize(file_paths[i])
+            
+                # Gửi tên file
+                socket.sendall(file_name.encode(FORMAT))
+                socket.recv(1024)  # Nhận phản hồi từ server
+            
+                # Gửi kích thước file
+                socket.sendall(str(file_size).encode(FORMAT))
+                socket.recv(1024)  # Nhận phản hồi từ server để xác nhận kích thước
+
+                # Gửi dữ liệu file
+                percent = 0
+                with open(file_paths[i], "rb") as f:
+                    send = 0
+                    while True:
+                        chunk = f.read(1024)
+                        if not chunk:
+                            break
+                        socket.sendall(chunk)
+                        send += len(chunk)
+                        percent = send / file_size * 100
+                        button_notice.config(text=f" {percent:.2f}%", fg="red")
+                        upload_window.update_idletasks()
+                print(f"Đã gửi file {file_name} thành công.")
+                # Đợi server xử lý xong file này trước khi gửi file tiếp theo
+                socket.recv(1024)  # Nhận phản hồi từ server để tiếp tục gửi file kế tiếp
+                if i==numfiles-1:
+                    print("Đã gửi toàn bộ file")
+            print("Tất cả các file đã được gửi thành công.")
+        
+        except Exception as e:
+            print(f"Error uploading file: {e}")
 
 
 def uploadbuttoncheck(socket):
     # Tạo cửa sổ mới cho tính năng upload
     upload_window = tk.Toplevel()
     upload_window.title("Upload File")
-    upload_window.geometry("400x300")
+    upload_window.geometry("600x400")
     # Tiêu đề cho cửa sổ upload
     label_upload = tk.Label(upload_window, text="Upload File", font=("Arial", 20))
     label_upload.pack(pady=20)
@@ -65,39 +93,93 @@ def uploadbuttoncheck(socket):
         label_filepath = tk.Label(upload_window, text=file_name, font=("Arial", 16))
         label_filepath.pack(pady=10)
     # Nút upload
-    button_notice=tk.Label(upload_window,text="")
-    button_confirm_upload = tk.Button(upload_window,text="Upload",font=("Arial", 14),command=lambda:upload_file(file_paths,socket,button_notice))
+    button_notice=tk.Label(upload_window,text="",font=("Arial",20))
+    button_confirm_upload = tk.Button(upload_window,text="Upload",font=("Arial", 14),command=lambda:upload_file(file_paths,socket,button_notice,upload_window))
     button_confirm_upload.pack(pady=20)
     # Nút đóng cửa sổ
     button_close = tk.Button(upload_window,text="Close",font=("Arial", 14),command=upload_window.destroy)
     button_close.pack(pady=10)
     button_notice.pack(pady=10)
-    
-    
-def downloadbuttoncheck():
-    # Tạo cửa sổ mới cho tính năng upload
+#def downloadfile(file_paths):
+ #   msg="download"
+  #  socket.sendall(msg.encode(FORMAT))
+   # socket.recv(1024)
+    #for i in range(len(file_paths)):
+     #   dowload_path=file_paths[i]
+      #  client.sendall(dowload_path.encode(FORMAT))
+       # server_msg=client.recv(1024).decode(FORMAT)
+        #if server_msg=="GOOD":
+         #  file_size = int(client.recv(1024).decode(FORMAT))
+          # received_data_client(client,dowload_path,file_size)
+       # elif server_msg=="ERROR":
+        #   print("FILE không tồn tại trên server")
+def downloadfilecheck(username,socket):
+    # Tạo cửa sổ mới cho tính năng download
     download_window = tk.Toplevel()
-    download_window.title("Upload File")
-    download_window.geometry("400x300")
+    download_window.title("Download File")
+    download_window.geometry("600x400")
+    #####
+    # download_window.grid_columnconfigure(0, weight=1)
+    # download_window.grid_rowconfigure(0, weight=1)
+ 
+    # # Tạo widget Text
+    # text = tk.Text(download_window, height=10)
+    # text.grid(row=0, column=0, sticky=tk.EW)
+ 
+    # # Tạo widget Scrollbar và đặt lệnh của nó cho widget Text
+    # scrollbar = ttk.Scrollbar(download_window, orient='vertical', command=text.yview)
+    # scrollbar.grid(row=0, column=1, sticky=tk.NS)
+ 
+    # # Giao tiếp lại với thanh cuộn
+    # text['yscrollcommand'] = scrollbar.set
+ 
+    # Thêm văn bản mẫu vào widget Text để hiển thị trên màn hình
+    
 
-    # Tiêu đề cho cửa sổ upload
-    label_download = tk.Label(download_window, text="Upload File", font=("Arial", 20))
+##########
+     # Tiêu đề cho cửa sổ download
+    label_download = tk.Label(download_window, text="Download File", font=("Arial", 20))
     label_download.pack(pady=20)
-
-    # Ô nhập đường dẫn file
-    label_filepath = tk.Label(download_window, text="File Path:", font=("Arial", 14))
-    label_filepath.pack(pady=10)
-    entry_filepath = tk.Entry(download_window, width=30, font=("Arial", 14))
-    entry_filepath.pack(pady=10)
-
-    # Nút upload
-    button_confirm_upload = tk.Button(download_window,text="Upload",font=("Arial", 14))
-    button_confirm_upload.pack(pady=20)
-
-    # Nút đóng cửa sổ
+    ######
+    msg = "get_list"
+    socket.sendall(msg.encode(FORMAT))
+    list_file=[]
+    item=socket.recv(1024).decode(FORMAT)
+    while(item!="end_list"):
+        print(item,"   ;   ")
+        list_file.append(item)
+        socket.sendall(item.encode(FORMAT))
+        item=socket.recv(1024).decode(FORMAT)
+    #####
+    # for i in len(list_file):
+    #     position = f'{i}.0'
+    #     text.insert(position, f'Dòng {list_file}\n')
+#############
+     # Nút đóng cửa sổ
+    btn = [] #creates list to store the buttons ins
+    btnnotice=[]
+    for i in range(len(list_file)): #this just popultes a list as a replacement for your actual inputs for troubleshooting purposes
+        btn.append("Button"+list_file[i])
+        btnnotice.append("Button_notice"+list_file[i])
+    ########
+    for i in range(len(list_file)):
+        label_filename = tk.Label(download_window, text=list_file[i], font=("Arial", 16))
+        label_filename.pack(pady=2)
+        btnnotice[i]=tk.Label(download_window,text="",font=("Arial",20))
+        btn[i] = tk.Button(download_window,text="Download",font=("Arial", 14),command=lambda c=i:download_file(socket, list_file[c],btnnotice[c],download_window))
+        btn[i].pack(pady=2)
+        btnnotice[i].pack(pady=2)
+        # Nút upload
+        
+    
+    
     button_close = tk.Button(download_window,text="Close",font=("Arial", 14),command=download_window.destroy)
     button_close.pack(pady=10)
     
+    
+    
+   
+
 def check_account(inputusername,inputpassword):
     account_name=inputusername.get()
     account_password=inputpassword.get()
@@ -122,8 +204,7 @@ def connect_to_server(socket):
 def check_login(socket):
     username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
     password=inputpassword.get()  #lấy thông tin nhập vào của ô nhập password
-    if(check_account(inputusername,inputpassword)==True):
-            print("xam lon")    
+    if(check_account(inputusername,inputpassword)==True):    
             connected = connect_to_server(socket)
             if connected == 1:
                 socket.sendall(username.encode(FORMAT))
@@ -133,7 +214,7 @@ def check_login(socket):
                 newwindow.geometry("600x400")
                 button_uploadfile=tk.Button(newwindow,text="Upload file",width=20,font=("Arial",20),command=lambda:uploadbuttoncheck(client))
                 button_uploadfile.pack(pady=10);
-                button_downloadfile=tk.Button(newwindow,text="Download file",width=20,font=("Arial",20),command=lambda:downloadbuttoncheck)
+                button_downloadfile=tk.Button(newwindow,text="Download file",width=20,font=("Arial",20),command=lambda:downloadfilecheck(username,client))
                 button_downloadfile.pack(pady=10)
             else:
                 label_error.config(text="Fail to connect to server", fg="red")
@@ -277,4 +358,5 @@ def send_data(socket, file_path, file_size):
                 # In thông báo sau khi toàn bộ file đã được gửi
     print("Đã gửi file thành công.")
     f.close()
+
 
