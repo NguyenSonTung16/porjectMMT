@@ -49,8 +49,9 @@ def send_prop(socket, file_name, file_size):
         print("SERVER TRA LOI:", server_msg)
         # Gửi kích thước file
         socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
-def send_data(socket, file_name, file_size):
-    with open(file_name, mode='rb') as f:
+def send_data(socket, file_name, file_size,save_path,folder_username):
+    absolute_filename=save_path+folder_username+"//"+file_name
+    with open(absolute_filename, mode='rb') as f:
         send=0
         while True:  # Vòng lặp vô hạn
             # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
@@ -83,6 +84,7 @@ def handle_client(conn, addr):
     msg = ""
     file_name=None
     file_size=None
+    save_path = "D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"
     try:
         msg = None
         while msg != "end":
@@ -98,15 +100,25 @@ def handle_client(conn, addr):
                     file_size = received_prop_filesize(conn, file_size)
                     received_data_server( conn, file_name, file_size,folder_username)
                 
-            elif msg == "dowload":
-                dowload_path = conn.recv(1024).decode(FORMAT)
-                if not os.path.exists(dowload_path):
-                    conn.sendall("ERROR".encode(FORMAT))
-                else:
-                    conn.sendall("GOOD".encode(FORMAT))
-                    file_size = os.path.getsize(dowload_path)
+            elif msg == "download": 
+                    conn.sendall("READY".encode(FORMAT))
+                    file_name=conn.recv(1024).decode(FORMAT)
+                    file_path=path+"//"+file_name    
+                    file_size = os.path.getsize(file_path)
                     conn.sendall(str(file_size).encode(FORMAT))
-                    send_data(conn, dowload_path, file_size)
+                    msg=conn.recv(1024).decode(FORMAT)
+                    print(msg)
+                    send_data(conn, file_name, file_size,save_path,folder_username)
+            elif msg=="get_list":
+                path = "D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"+folder_username
+                dir_list = os.listdir(path)
+                for item in dir_list:
+                    print(item)
+                    conn.sendall(item.encode(FORMAT))
+                    conn.recv(1024)
+                conn.sendall("end_list".encode(FORMAT))
+                
+                
     
     except Exception as e:
         print(f"Lỗi xử lý client {addr}: {e}")
