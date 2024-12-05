@@ -37,24 +37,27 @@ def upload_file(file_paths, socket, button_notice,upload_window):
     # Gửi file lên server
         msg = "upload"
         socket.sendall(msg.encode(FORMAT))
+        
         socket.recv(1024)
         try:
             numfiles=len(file_paths)
-            # print(numfiles)
+            print(numfiles)
             socket.sendall(str(numfiles).encode(FORMAT))
             socket.recv(1024)
+            print(msg)
             for i in range(numfiles):
                 file_name = os.path.basename(file_paths[i])
                 file_size = os.path.getsize(file_paths[i])
             
                 # Gửi tên file
                 socket.sendall(file_name.encode(FORMAT))
+                print(msg)
                 socket.recv(1024)  # Nhận phản hồi từ server
-            
+                print(msg)
                 # Gửi kích thước file
                 socket.sendall(str(file_size).encode(FORMAT))
                 socket.recv(1024)  # Nhận phản hồi từ server để xác nhận kích thước
-
+                
                 # Gửi dữ liệu file
                 percent = 0
                 with open(file_paths[i], "rb") as f:
@@ -181,33 +184,41 @@ def downloadfilecheck(username,socket):
    
 
 def check_account(inputusername,inputpassword):
-    account_name=inputusername.get()
-    account_password=inputpassword.get()
+   
     with open('account.txt','r') as file: #Mở file "account.txt" trong chế độ đọc với lệnh file để đảm bảo file sẽ đóng sao khi thực hiện
         check_legit=False
         for line in file:
             accountdetails=line.strip() #xóa các kí tự thừa ở đầu và cuối dòng
             accountdetails=accountdetails.split()
-            if account_name in line and accountdetails[1]==account_password: #kiểm tra username có nằm ở dòng hiện tại không,nếu có thì kiểm tra mật khẩu
+            if inputusername in line and accountdetails[1]==inputpassword: #kiểm tra username có nằm ở dòng hiện tại không,nếu có thì kiểm tra mật khẩu
                 check_legit=True
                 break
         return check_legit
 def connect_to_server(socket):
     try:
-        
         socket.connect((HOST, SERVER_PORT))
         print("Client connected to server")
         return 1
     except Exception as e:
         print(f"Error connecting to server: {e}") 
         return 0
-def check_login(socket):
-    username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
-    password=inputpassword.get()  #lấy thông tin nhập vào của ô nhập password
-    if(check_account(inputusername,inputpassword)==True):    
-            connected = connect_to_server(socket)
-            if connected == 1:
-                socket.sendall(username.encode(FORMAT))
+def check_login(): 
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connected = connect_to_server(client)
+        if connected == 1:
+            
+            username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
+            password=inputpassword.get()
+           
+            client.sendall("login".encode(FORMAT))
+            client.recv(1024)
+         
+            client.sendall(username.encode(FORMAT))
+            client.recv(1024)
+            
+            client.sendall(password.encode(FORMAT))
+            msg_server=client.recv(1024).decode(FORMAT)
+            if msg_server=="true":
                 window.destroy() #Xóa cửa sổ đang nhập
                 newwindow=tk.Tk() #Tạo cửa sổ mới 
                 newwindow.title("Menu")
@@ -216,42 +227,88 @@ def check_login(socket):
                 button_uploadfile.pack(pady=10);
                 button_downloadfile=tk.Button(newwindow,text="Download file",width=20,font=("Arial",20),command=lambda:downloadfilecheck(username,client))
                 button_downloadfile.pack(pady=10)
+                newwindow.mainloop()
+                client.sendall("end".encode(FORMAT))
             else:
-                label_error.config(text="Fail to connect to server", fg="red")
-   
-    else:
-        label_error.config(text="Invalid username or password", fg="red") #thay đổi tiêu đề in lỗi khi username hoặc password không đúng
-                     
+                label_error.config(text="Invalid username or password", fg="red") #thay đổi tiêu đề in lỗi khi username hoặc password không đúng
+                client.sendall("end".encode(FORMAT))
+                print("Disconnect because invalid")
+                client.close()
+        else:
+            label_error.config(text="Fail to connect to server", fg="red")
          
 def check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line):
     newusername=signup_inputusername.get()
     newpassword= signup_inputpassword.get()
-    confirm_password = signup_confirminputpassword.get()  
+    confirm_password = signup_confirminputpassword.get() 
     if newpassword != confirm_password:
         error_line.config(text="Passwords do not match", fg="red")
         return
-    with open('account.txt','r') as file:
-        check_username=False
-        check_password=False
-        for line in file:
-            accountdetails=line.strip() 
-            accountdetails=accountdetails.split()
-            # Kiểm tra xem tên tài khoản đã tồn tại chưa
-            if newusername == accountdetails[0]:
-                check_username = True
-            # Kiểm tra mật khẩu đã tồn tại cho tên tài khoản này chưa
-            if newpassword == accountdetails[1]:
-                check_password = True
-        if check_username==True:
-            error_line.config(text="Username already exists", fg="red")
-        elif check_password==True:
-            error_line.config(text="Password already exists", fg="red")
-        elif  check_username==True and  check_password==True:
-            error_line.config(text="Username and Password already exists", fg="red")
-        else:
-            error_line.config(text="Account created successfully", fg="green")
-            with open('account.txt', 'a') as file:                 #Mở file và lưu tài khoản vừa tạo vào file
-                file.write(f"{newusername} {newpassword}\n")
+    
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    connected = connect_to_server(client)
+     
+    if connected == 1:
+            
+            username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
+            password=inputpassword.get()
+           
+            client.sendall("sign up".encode(FORMAT))
+            
+            msg_server=client.recv(1024).decode(FORMAT)
+            print(msg_server)
+            client.sendall(newusername.encode(FORMAT))
+            
+            msg_server=client.recv(1024).decode(FORMAT)
+            print(msg_server)
+            client.sendall(newpassword.encode(FORMAT))
+            
+            msg_server=client.recv(1024).decode(FORMAT)
+            print(msg_server)
+            
+            if msg_server=="username exist":
+                error_line.config(text="Username already exists", fg="red")
+        
+            elif msg_server=="password exist":
+                error_line.config(text="Password already exists", fg="red")
+        
+            elif msg_server=="username and password exist":
+                error_line.config(text="Username and Password already exists", fg="red")
+            else:   
+                error_line.config(text="Account created successfully", fg="green")
+            client.sendall("end".encode(FORMAT))
+            client.close()       
+    else:
+        error_line.config(text="Fail to connect to server", fg="red")
+        client.close()
+            
+
+
+    # if newpassword != confirm_password:
+    #     error_line.config(text="Passwords do not match", fg="red")
+    #     return
+    # with open('account.txt','r') as file:
+    #     check_username=False
+    #     check_password=False
+    #     for line in file:
+    #         accountdetails=line.strip() 
+    #         accountdetails=accountdetails.split()
+    #         # Kiểm tra xem tên tài khoản đã tồn tại chưa
+    #         if newusername == accountdetails[0]:
+    #             check_username = True
+    #         # Kiểm tra mật khẩu đã tồn tại cho tên tài khoản này chưa
+    #         if newpassword == accountdetails[1]:
+    #             check_password = True
+    #     if check_username==True:
+    #         error_line.config(text="Username already exists", fg="red")
+    #     elif check_password==True:
+    #         error_line.config(text="Password already exists", fg="red")
+    #     elif  check_username==True and  check_password==True:
+    #         error_line.config(text="Username and Password already exists", fg="red")
+    #     else:
+    #         error_line.config(text="Account created successfully", fg="green")
+    #         with open('account.txt', 'a') as file:                 #Mở file và lưu tài khoản vừa tạo vào file
+    #             file.write(f"{newusername} {newpassword}\n")
                 
 def check_signup():
     signup_win=tk.Tk()
@@ -274,7 +331,6 @@ def check_signup():
     Confirm_button=tk.Button(signup_win,text="Confirm",width=16,height=1, font=("Arial", 14),command=lambda:check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line))
     Confirm_button.pack()
 window=tk.Tk()
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #client.connect((HOST, SERVER_PORT))
 window.title("Sever")
 window.geometry("600x400")
@@ -286,15 +342,14 @@ label_password=tk.Label(window,text="Password",font=("Arial",20)) #tiêu đề c
 label_password.pack(pady=10) #in tiêu đề của ô mật khẩu
 inputpassword=tk.Entry(window,width=16,font=("Arial",20)) #Ô nhập mật khẩu
 inputpassword.pack(pady=10) #in ô nhập mật khẩu lên cửa sổ
-loginbutton=tk.Button(window,text="Login",width=16,height=1, font=("Arial", 14),command=lambda:check_login(client)) #Nút đăng nhập
+loginbutton=tk.Button(window,text="Login",width=16,height=1, font=("Arial", 14),command=lambda:check_login()) #Nút đăng nhập
 loginbutton.pack(pady=10) # in nút đăng nhập lên cửa sổ,nút "login" cách 1 khoảng 10 dưới label "username"
 signupbutton=tk.Button(window,text="Sign up",width=16,height=1,font=("Arial",14),command=lambda:check_signup()) #nút tạo tài khoản mới
 signupbutton.pack(pady=10)
 label_error = tk.Label(window, text="", font=("Arial", 14), fg="red")  #tiêu đề in ra khi có lỗi(để rỗng khi chưa có gì)
 label_error.pack(pady=10)
 window.mainloop() #khởi chạy giao diện
-client.sendall("end".encode(FORMAT))
-client.close()
+
 
 def received_prop_filename(socket, file_name):
     file_name = socket.recv(1024).decode(FORMAT)
@@ -358,5 +413,3 @@ def send_data(socket, file_path, file_size):
                 # In thông báo sau khi toàn bộ file đã được gửi
     print("Đã gửi file thành công.")
     f.close()
-
-
