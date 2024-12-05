@@ -1,10 +1,10 @@
+from tkinter import * 
 import socket
 import time
 import os
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
-from turtle import down
 HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
@@ -116,68 +116,59 @@ def uploadbuttoncheck(socket):
           # received_data_client(client,dowload_path,file_size)
        # elif server_msg=="ERROR":
         #   print("FILE không tồn tại trên server")
-def downloadfilecheck(username,socket):
+def downloadfilecheck(username, socket):
     # Tạo cửa sổ mới cho tính năng download
     download_window = tk.Toplevel()
     download_window.title("Download File")
     download_window.geometry("600x400")
-    #####
-    # download_window.grid_columnconfigure(0, weight=1)
-    # download_window.grid_rowconfigure(0, weight=1)
- 
-    # # Tạo widget Text
-    # text = tk.Text(download_window, height=10)
-    # text.grid(row=0, column=0, sticky=tk.EW)
- 
-    # # Tạo widget Scrollbar và đặt lệnh của nó cho widget Text
-    # scrollbar = ttk.Scrollbar(download_window, orient='vertical', command=text.yview)
-    # scrollbar.grid(row=0, column=1, sticky=tk.NS)
- 
-    # # Giao tiếp lại với thanh cuộn
-    # text['yscrollcommand'] = scrollbar.set
- 
-    # Thêm văn bản mẫu vào widget Text để hiển thị trên màn hình
+    #Tạo khung chính
+    main_frame=Frame(download_window)
+    main_frame.pack(fill=BOTH,expand=1)
     
+    new_canvas=Canvas(main_frame)
+    new_canvas.pack(side=RIGHT,fill=BOTH,expand=1)
+    #thêm thanh cuốn
+    new_scrollbar=tk.Scrollbar(main_frame,orient=VERTICAL,command=new_canvas.yview)
+    new_scrollbar.pack(side=RIGHT,fill=Y)
+    new_canvas.configure(yscrollcommand=new_scrollbar.set)
+    new_canvas.bind('<Configure>',lambda e: new_canvas.configure(scrollregion=new_canvas.bbox("all")))
+    second_frame=Frame(new_canvas)
+    new_canvas.create_window((0,0),window=second_frame,anchor="nw")
 
-##########
-     # Tiêu đề cho cửa sổ download
-    label_download = tk.Label(download_window, text="Download File", font=("Arial", 20))
-    label_download.pack(pady=20)
-    ######
+    # Gửi yêu cầu lấy danh sách file
     msg = "get_list"
     socket.sendall(msg.encode(FORMAT))
-    list_file=[]
-    item=socket.recv(1024).decode(FORMAT)
-    while(item!="end_list"):
-        print(item,"   ;   ")
+    list_file = []
+    item = socket.recv(1024).decode(FORMAT)
+    while(item != "end_list"):
         list_file.append(item)
         socket.sendall(item.encode(FORMAT))
-        item=socket.recv(1024).decode(FORMAT)
-    #####
-    # for i in len(list_file):
-    #     position = f'{i}.0'
-    #     text.insert(position, f'Dòng {list_file}\n')
-#############
-     # Nút đóng cửa sổ
-    btn = [] #creates list to store the buttons ins
-    btnnotice=[]
-    for i in range(len(list_file)): #this just popultes a list as a replacement for your actual inputs for troubleshooting purposes
-        btn.append("Button"+list_file[i])
-        btnnotice.append("Button_notice"+list_file[i])
-    ########
+        item = socket.recv(1024).decode(FORMAT)
+
+    # Tạo danh sách các nút và thông báo
+    btn = []  # Danh sách các nút tải xuống
+    btnnotice = []  # Danh sách các nút thông báo tải xuống
     for i in range(len(list_file)):
-        label_filename = tk.Label(download_window, text=list_file[i], font=("Arial", 16))
-        label_filename.pack(pady=2)
-        btnnotice[i]=tk.Label(download_window,text="",font=("Arial",20))
-        btn[i] = tk.Button(download_window,text="Download",font=("Arial", 14),command=lambda c=i:download_file(socket, list_file[c],btnnotice[c],download_window))
-        btn[i].pack(pady=2)
+        btn.append("Button" + list_file[i])
+        btnnotice.append("Button_notice" + list_file[i])
+
+    # Thêm các label và nút vào trong frame
+    for i in range(len(list_file)):
+         # Tạo label hiển thị tên file
+        label_filename = tk.Label(second_frame, text=list_file[i], font=("Arial", 16))
+        label_filename.pack(pady=5)
+
+        # Tạo label thông báo tải xuống
+        btnnotice[i] = tk.Label(second_frame, text="", font=("Arial", 12))
         btnnotice[i].pack(pady=2)
-        # Nút upload
-        
+
+        # Tạo button để tải xuống
+        btn[i] = tk.Button(second_frame, text="Download", font=("Arial", 14), command=lambda c=i: download_file(socket, list_file[c], btnnotice[c], download_window))
+        btn[i].pack(pady=5)
     
-    
-    button_close = tk.Button(download_window,text="Close",font=("Arial", 14),command=download_window.destroy)
-    button_close.pack(pady=10)
+    # Tạo nút đóng cửa sổ
+    button_close = tk.Button(second_frame, text="Close", font=("Arial", 14), command=download_window.destroy)
+    button_close.pack(pady=20)
     
     
     
