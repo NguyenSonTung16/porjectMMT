@@ -8,46 +8,21 @@ from tkinter import ttk
 HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
-def download_file( socket, file_name,btnnotice,download_window):
-        # # Lưu file với tên gốc
-        socket.sendall("download".encode(FORMAT))
-        socket.recv(1024)
-        socket.sendall(file_name.encode(FORMAT))
-        file_size = int(socket.recv(1024).decode(FORMAT))
-        socket.sendall("ok_properties".encode(FORMAT))
-        
-        #Gửi dữ liệu file
-        percent = 0
-        with open(file_name, "wb") as f:
-            received = 0
-            while received < file_size:
-                print("a")
-                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
-                if not chunk:
-                    break
-                f.write(chunk)
-                received += len(chunk)
-                percent=received/file_size*100
-                btnnotice.config(text=f" {percent:.2f}%", fg="red")
-                download_window.update_idletasks()
-                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
-        print(f"File {file_name} đã được lưu thành công.")
-        f.close()
 def upload_file(file_paths, socket, button_notice,upload_window):
     # Gửi file lên server
         msg = "upload"
-        socket.sendall(msg.encode(FORMAT))
+        socket.sendall(msg.encode(FORMAT)) #Gửi tín hiệu yêu cầu upload file cho server
         
-        socket.recv(1024)
+        socket.recv(1024) #nhận phản hồi từ server
         try:
-            numfiles=len(file_paths)
+            numfiles=len(file_paths) #lấy số lượng file
             print(numfiles)
-            socket.sendall(str(numfiles).encode(FORMAT))
+            socket.sendall(str(numfiles).encode(FORMAT)) #gửi số lượng file muốn upload cho server
             socket.recv(1024)
             print(msg)
             for i in range(numfiles):
-                file_name = os.path.basename(file_paths[i])
-                file_size = os.path.getsize(file_paths[i])
+                file_name = os.path.basename(file_paths[i]) #Lấy tên file
+                file_size = os.path.getsize(file_paths[i]) # Lấy kích thước file
             
                 # Gửi tên file
                 socket.sendall(file_name.encode(FORMAT))
@@ -103,19 +78,33 @@ def uploadbuttoncheck(socket):
     button_close = tk.Button(upload_window,text="Close",font=("Arial", 14),command=upload_window.destroy)
     button_close.pack(pady=10)
     button_notice.pack(pady=10)
-#def downloadfile(file_paths):
- #   msg="download"
-  #  socket.sendall(msg.encode(FORMAT))
-   # socket.recv(1024)
-    #for i in range(len(file_paths)):
-     #   dowload_path=file_paths[i]
-      #  client.sendall(dowload_path.encode(FORMAT))
-       # server_msg=client.recv(1024).decode(FORMAT)
-        #if server_msg=="GOOD":
-         #  file_size = int(client.recv(1024).decode(FORMAT))
-          # received_data_client(client,dowload_path,file_size)
-       # elif server_msg=="ERROR":
-        #   print("FILE không tồn tại trên server")
+
+#Hàm download file được gọi khi ấn vào nút download
+def download_file( socket, file_name,btnnotice,download_window):
+        # # Lưu file với tên gốc
+        socket.sendall("download".encode(FORMAT)) #gửi tín hiệu yêu cầu download cho server
+        socket.recv(1024) #Nhận phản hồi từ server
+        socket.sendall(file_name.encode(FORMAT)) #gửi tên file cho server
+        file_size = int(socket.recv(1024).decode(FORMAT)) #Nhận kích thước file từ server
+        socket.sendall("ok_properties".encode(FORMAT))#Gửi phản hồi để server tiếp tục gửi file
+        
+        #Gửi dữ liệu file
+        percent = 0 
+        with open(file_name, "wb") as f: #Mở file để ghi ở dạng nhị phân
+            received = 0 #khởi tạo biến theo dõi số lượng byte đã nhận đc
+            while received < file_size:
+                chunk = socket.recv(min(1024, file_size - received))  # Nhận dữ liệu từng khối (chunk),kích thước không vượt quá 1024 bytes hoặc nhận số byte còn lại
+                if not chunk:
+                    break #Nếu không còn dữ kiệu thì kết thúc vòng lặp
+                f.write(chunk) #Ghi khối dữ liệu nhận được vào file
+                received += len(chunk) #Cập nhật số byte đã nhận
+                percent=received/file_size*100
+                btnnotice.config(text=f" {percent:.2f}%", fg="red") #Cập nhật lại phần trăm thông báo trên giao diện
+                download_window.update_idletasks() #Cập nhật lại giao diện để hiển thị thay đổi
+                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
+        print(f"File {file_name} đã được lưu thành công.")
+        f.close()
+#Cửa sổ download file        
 def downloadfilecheck(username, socket):
     # Tạo cửa sổ mới cho tính năng download
     download_window = tk.Toplevel()
@@ -124,21 +113,22 @@ def downloadfilecheck(username, socket):
     #Tạo khung chính
     main_frame=Frame(download_window)
     main_frame.pack(fill=BOTH,expand=1)
-    
+    #Tạo canvas chứa nội dung có thể cuộn
     new_canvas=Canvas(main_frame)
     new_canvas.pack(side=RIGHT,fill=BOTH,expand=1)
     #thêm thanh cuốn
-    new_scrollbar=tk.Scrollbar(main_frame,orient=VERTICAL,command=new_canvas.yview)
-    new_scrollbar.pack(side=RIGHT,fill=Y)
-    new_canvas.configure(yscrollcommand=new_scrollbar.set)
+    new_scrollbar=tk.Scrollbar(main_frame,orient=VERTICAL,command=new_canvas.yview) #Tạo thanh cuốn dọc
+    new_scrollbar.pack(side=RIGHT,fill=Y)#Đặt thanh cuốn ở bên phải với chiều cao bằng với cửa sổ
+    new_canvas.configure(yscrollcommand=new_scrollbar.set) # thiết lập để thanh cuốn đồng bộ với canvas
+    # Khi canvas thay đổi kích thước, cập nhật lại vùng cuộn của canvas
     new_canvas.bind('<Configure>',lambda e: new_canvas.configure(scrollregion=new_canvas.bbox("all")))
-    second_frame=Frame(new_canvas)
-    new_canvas.create_window((0,0),window=second_frame,anchor="nw")
+    second_frame=Frame(new_canvas) # Tạo frame con chứa các nút và thông báo
+    new_canvas.create_window((0,0),window=second_frame,anchor="center") # Đặt frame con ở giữa canvas 
 
     # Gửi yêu cầu lấy danh sách file
     msg = "get_list"
     socket.sendall(msg.encode(FORMAT))
-    list_file = []
+    list_file = [] 
     item = socket.recv(1024).decode(FORMAT)
     while(item != "end_list"):
         list_file.append(item)
@@ -169,47 +159,32 @@ def downloadfilecheck(username, socket):
     # Tạo nút đóng cửa sổ
     button_close = tk.Button(second_frame, text="Close", font=("Arial", 14), command=download_window.destroy)
     button_close.pack(pady=20)
-    
-    
-    
-   
-
-def check_account(inputusername,inputpassword):
-   
-    with open('account.txt','r') as file: #Mở file "account.txt" trong chế độ đọc với lệnh file để đảm bảo file sẽ đóng sao khi thực hiện
-        check_legit=False
-        for line in file:
-            accountdetails=line.strip() #xóa các kí tự thừa ở đầu và cuối dòng
-            accountdetails=accountdetails.split()
-            if inputusername in line and accountdetails[1]==inputpassword: #kiểm tra username có nằm ở dòng hiện tại không,nếu có thì kiểm tra mật khẩu
-                check_legit=True
-                break
-        return check_legit
+  
 def connect_to_server(socket):
     try:
-        socket.connect((HOST, SERVER_PORT))
-        print("Client connected to server")
+        socket.connect((HOST, SERVER_PORT)) # Kết nối đến server sử dụng địa chỉ IP và PORT
+        print("Client connected to server") 
         return 1
     except Exception as e:
         print(f"Error connecting to server: {e}") 
         return 0
 def check_login(): 
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connected = connect_to_server(client)
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Tạo socket client mới
+        connected = connect_to_server(client) #Kết nối tới server
         if connected == 1:
             
             username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
-            password=inputpassword.get()
+            password=inputpassword.get() #lấy thông tin nhập vào của ô nhập password
            
-            client.sendall("login".encode(FORMAT))
+            client.sendall("login".encode(FORMAT)) #Gửi tín hiệu yêu cầu đăng nhập tới server
             client.recv(1024)
          
-            client.sendall(username.encode(FORMAT))
+            client.sendall(username.encode(FORMAT)) #Gửi username cho server
             client.recv(1024)
             
-            client.sendall(password.encode(FORMAT))
-            msg_server=client.recv(1024).decode(FORMAT)
-            if msg_server=="true":
+            client.sendall(password.encode(FORMAT)) #Gửi password cho server
+            msg_server=client.recv(1024).decode(FORMAT) #Nhận tín hiệu kiểm tra đăng nhập của server
+            if msg_server=="true": #Tín hiệu trả về True thì vào giao diện chính
                 window.destroy() #Xóa cửa sổ đang nhập
                 newwindow=tk.Tk() #Tạo cửa sổ mới 
                 newwindow.title("Menu")
@@ -220,7 +195,7 @@ def check_login():
                 button_downloadfile.pack(pady=10)
                 newwindow.mainloop()
                 client.sendall("end".encode(FORMAT))
-            else:
+            else: #Tín hiệu trả về False thì in ra thông báo lỗi
                 label_error.config(text="Invalid username or password", fg="red") #thay đổi tiêu đề in lỗi khi username hoặc password không đúng
                 client.sendall("end".encode(FORMAT))
                 print("Disconnect because invalid")
@@ -229,30 +204,30 @@ def check_login():
             label_error.config(text="Fail to connect to server", fg="red")
          
 def check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line):
-    newusername=signup_inputusername.get()
-    newpassword= signup_inputpassword.get()
+    newusername=signup_inputusername.get() #Lấy username từ ô nhập
+    newpassword= signup_inputpassword.get() #Lấy password từ ô nhập
     confirm_password = signup_confirminputpassword.get() 
     if newpassword != confirm_password:
-        error_line.config(text="Passwords do not match", fg="red")
+        error_line.config(text="Passwords do not match", fg="red") #Kiểm tra password và confirm password có giống không,nếu không thì báo lỗi
         return
     
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    connected = connect_to_server(client)
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Tạo một socket client mới
+    connected = connect_to_server(client) #Kết nối tới server
      
-    if connected == 1:
+    if connected == 1: #Kết nối thành công 
             
             username=inputusername.get() #lấy thông tin nhập vào của ô nhập username
             password=inputpassword.get()
            
-            client.sendall("sign up".encode(FORMAT))
+            client.sendall("sign up".encode(FORMAT)) #Gửi tín hiệu yêu cầu tạo tài khoản tới server
             
             msg_server=client.recv(1024).decode(FORMAT)
             print(msg_server)
-            client.sendall(newusername.encode(FORMAT))
+            client.sendall(newusername.encode(FORMAT)) #Gửi username cho server
             
             msg_server=client.recv(1024).decode(FORMAT)
             print(msg_server)
-            client.sendall(newpassword.encode(FORMAT))
+            client.sendall(newpassword.encode(FORMAT)) #Gửi password cho server
             
             msg_server=client.recv(1024).decode(FORMAT)
             print(msg_server)
@@ -270,37 +245,9 @@ def check_createaccount(signup_inputusername, signup_inputpassword, signup_confi
             client.sendall("end".encode(FORMAT))
             client.close()       
     else:
-        error_line.config(text="Fail to connect to server", fg="red")
+        error_line.config(text="Fail to connect to server", fg="red") #Sửa lại thông báo nếu không thể kết nối
         client.close()
-            
-
-
-    # if newpassword != confirm_password:
-    #     error_line.config(text="Passwords do not match", fg="red")
-    #     return
-    # with open('account.txt','r') as file:
-    #     check_username=False
-    #     check_password=False
-    #     for line in file:
-    #         accountdetails=line.strip() 
-    #         accountdetails=accountdetails.split()
-    #         # Kiểm tra xem tên tài khoản đã tồn tại chưa
-    #         if newusername == accountdetails[0]:
-    #             check_username = True
-    #         # Kiểm tra mật khẩu đã tồn tại cho tên tài khoản này chưa
-    #         if newpassword == accountdetails[1]:
-    #             check_password = True
-    #     if check_username==True:
-    #         error_line.config(text="Username already exists", fg="red")
-    #     elif check_password==True:
-    #         error_line.config(text="Password already exists", fg="red")
-    #     elif  check_username==True and  check_password==True:
-    #         error_line.config(text="Username and Password already exists", fg="red")
-    #     else:
-    #         error_line.config(text="Account created successfully", fg="green")
-    #         with open('account.txt', 'a') as file:                 #Mở file và lưu tài khoản vừa tạo vào file
-    #             file.write(f"{newusername} {newpassword}\n")
-                
+#Cửa sổ đăng kí tài khoản                
 def check_signup():
     signup_win=tk.Tk()
     signup_win.title("Sign Up")
@@ -322,7 +269,6 @@ def check_signup():
     Confirm_button=tk.Button(signup_win,text="Confirm",width=16,height=1, font=("Arial", 14),command=lambda:check_createaccount(signup_inputusername, signup_inputpassword, signup_confirminputpassword, error_line))
     Confirm_button.pack()
 window=tk.Tk()
-#client.connect((HOST, SERVER_PORT))
 window.title("Sever")
 window.geometry("600x400")
 label_username=tk.Label(window,text="username",font=("Arial", 20)) #tiêu đề của ô username
@@ -340,67 +286,3 @@ signupbutton.pack(pady=10)
 label_error = tk.Label(window, text="", font=("Arial", 14), fg="red")  #tiêu đề in ra khi có lỗi(để rỗng khi chưa có gì)
 label_error.pack(pady=10)
 window.mainloop() #khởi chạy giao diện
-
-
-def received_prop_filename(socket, file_name):
-    file_name = socket.recv(1024).decode(FORMAT)
-    socket.sendall(f"Received file name: {file_name}".encode(FORMAT))
-    print(f"Tên file nhận được: {file_name}")
-    return file_name
-def received_prop_filesize(socket, file_size):
-    # Nhận kích thước file
-    file_size = int(socket.recv(1024).decode(FORMAT))
-    print(f"Kích thước file nhận được: {file_size} bytes")
-    return file_size
-
-
-def check_exist_file_on_server(file_name, file_size):
-    #check file da ton tai tren server chua
-    if not os.path.exists(file_name):
-        return 1
-    else:
-        return 2
-          
-                    
-def received_data_client( socket, file_name, file_size):
-        # # Lưu file với tên gốc
-        with open(file_name, "wb") as f:
-            received = 0
-            while received < file_size:
-                chunk = socket.recv(min(1024, file_size - received))  # Đọc khối dữ liệu
-                if not chunk:
-                    break
-                f.write(chunk)
-                received += len(chunk)
-                percent=received/file_size*100
-                print(f"Đã nhận {received}/{file_size} bytes {percent}%")
-        print(f"File {file_name} đã được lưu thành công.")
-        f.close()
-                    
-def send_prop(socket, file_name, file_size):
-        print(f"Tên file: {file_name}, Kích thước: {file_size} bytes")
-        # Gửi tên file trước
-        socket.sendall(file_name.encode(FORMAT))
-        server_= socket.recv(1024).decode(FORMAT)  # Nhận phản hồi
-        print("SERVER TRA LOI:", server_)               
-        # Gửi kích thước file
-        socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
-def send_data(socket, file_path, file_size):
-    with open(file_path, mode='rb') as f:
-        send=0
-        while True:  # Vòng lặp vô hạn
-            # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
-            chunk = f.read(1024)
-                        
-            # Nếu chunk rỗng (tức đã đọc hết file), thoát khỏi vòng lặp
-            if not chunk:
-                break
-                    
-             #Nếu chunk không rỗng -> Gửi khối dữ liệu hiện tại qua socket
-            socket.sendall(chunk)
-            send+=len(chunk)
-            percent=send/file_size*100
-            print(f"Đã tải {send}/{file_size} bytes {percent}%")
-                # In thông báo sau khi toàn bộ file đã được gửi
-    print("Đã gửi file thành công.")
-    f.close()
