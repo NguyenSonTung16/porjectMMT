@@ -5,40 +5,41 @@ import socket
 import os
 import string
 import threading
+# Hàm nhận tên file từ client
 def received_prop_filename(socket, file_name):
     file_name = conn.recv(1024).decode(FORMAT)
     conn.sendall(f"Received file name: {file_name}".encode(FORMAT))
     print(f"Tên file nhận được: {file_name}")
     return file_name
+# Hàm nhận kích thước file từ client
 def received_prop_filesize(conn, file_size):
     # Nhận kích thước file
     file_size = int(conn.recv(1024).decode(FORMAT))
     conn.sendall(f"Received file size: {file_size}".encode(FORMAT))
     print(f"Kích thước file nhận được: {file_size} bytes")
     return file_size
-
-
+# hàm kiểm tra xem file có tồn tại trên server không
 def check_exist_file_on_server(file_name, file_size):
     #check file da ton tai tren server chua
     if not os.path.exists(file_name):
         return 1
     else:
         return 2
-
+    #Hàm kiểm tra tài khoản đăng nhập
 def check_account(inputusername,inputpassword):
    
     with open('account.txt','r') as file: #Mở file "account.txt" trong chế độ đọc với lệnh file để đảm bảo file sẽ đóng sao khi thực hiện
         check_legit=False
         for line in file:
             accountdetails=line.strip() #xóa các kí tự thừa ở đầu và cuối dòng
-            accountdetails=accountdetails.split()
+            accountdetails=accountdetails.split() #Chia username và password thành các thành phần trong mảng
             if inputusername in line and accountdetails[1]==inputpassword: #kiểm tra username có nằm ở dòng hiện tại không,nếu có thì kiểm tra mật khẩu
                 check_legit=True
                 break
         return check_legit         
-                    
+# Hàm nhận dữ liệu file từ client và lưu vào server                   
 def received_data_server( socket, file_name, file_size,folder_username):
-        file_save_path="D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"+folder_username+"//"+file_name    
+        file_save_path="C://Users//tung1//source//repos//PythonApplication2//PythonApplication2//"+folder_username+"//"+file_name    #Đường dẫn lưu file(Có thể thay đổi tùy máy)
         # # Lưu file với tên gốc
         with open(file_save_path, "wb") as f:
             received = 0
@@ -52,6 +53,7 @@ def received_data_server( socket, file_name, file_size,folder_username):
                 print(f"Đã nhận {received}/{file_size} bytes {percent}%")
         print(f"File {file_name} đã được lưu thành công.")
         conn.sendall("đã được lưu thành công".encode(FORMAT))
+# Hàm gửi thông tin về file bao gồm tên file và kích thước tới client
 def send_prop(socket, file_name, file_size):
         print(f"Tên file: {file_name}, Kích thước: {file_size} bytes")
         # Gửi tên file trước
@@ -60,9 +62,10 @@ def send_prop(socket, file_name, file_size):
         print("SERVER TRA LOI:", server_msg)
         # Gửi kích thước file
         socket.sendall(str(file_size).encode(FORMAT)) #ép kiểu kích thước file thành chuỗi str để gửi
+# Hàm gửi dữ liệu file từ server tới client        
 def send_data(socket, file_name, file_size,save_path,folder_username):
-    absolute_filename=save_path+folder_username+"//"+file_name
-    with open(absolute_filename, mode='rb') as f:
+    absolute_filename=save_path+folder_username+"//"+file_name #đường dẫn của file
+    with open(absolute_filename, mode='rb') as f: #Mở file để đọc ở chế dộ nhị phân
         send=0
         while True:  # Vòng lặp vô hạn
             # Đọc tối đa 1024 byte dữ liệu từ file (trong 1 vòng lặp)
@@ -80,53 +83,54 @@ def send_data(socket, file_name, file_size,save_path,folder_username):
                 # In thông báo sau khi toàn bộ file đã được gửi
     print("Đã gửi file thành công.")  
     f.close()
+# Hàm xử lý các yêu cầu từ client    
 def handle_client(conn, addr):
     
     msg = ""
     file_name=None
     file_size=None
-    save_path = "D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"
+    save_path = "C://Users//tung1//source//repos//PythonApplication2//PythonApplication2//" #Đường dẫn lưu trữ trên server
     try:
        
         msg = None
-        while msg != "end":
-            msg = conn.recv(1024).decode(FORMAT)
+        while msg != "end": #Vòng lặp cho đến khi client gửi end
+            msg = conn.recv(1024).decode(FORMAT) #Nhận yêu cầu từ server
             print(f"Client {addr} talk: {msg}")
-            if msg == "upload":
-                conn.sendall("Ready to recv file".encode(FORMAT))
-                Numfiles=int(conn.recv(1024).decode(FORMAT))
+            if msg == "upload": #Trường hợp client yêu cầu upload file
+                conn.sendall("Ready to recv file".encode(FORMAT)) #Gửi thông báo đã sẵn sàng nhận file từ client
+                Numfiles=int(conn.recv(1024).decode(FORMAT)) #Nhận số lượng file từ client
                 print(Numfiles)
-                conn.sendall("Xac nhan so luong file".encode(FORMAT))
-                for i in range(Numfiles):    
-                    file_name = received_prop_filename(conn, file_name)
-                    file_size = received_prop_filesize(conn, file_size)
-                    received_data_server( conn, file_name, file_size,folder_username)
+                conn.sendall("Xac nhan so luong file".encode(FORMAT)) 
+                for i in range(Numfiles):    #Vòng lặp để tải tất cả các file
+                    file_name = received_prop_filename(conn, file_name) #Nhận tên file
+                    file_size = received_prop_filesize(conn, file_size) #Nhận kích thước file
+                    received_data_server( conn, file_name, file_size,folder_username) #Nhận dữ liệu và lưu file
                 
-            elif msg == "download": 
-                    conn.sendall("READY".encode(FORMAT))
-                    file_name=conn.recv(1024).decode(FORMAT)
-                    file_path=path+"//"+file_name    
-                    file_size = os.path.getsize(file_path)
-                    conn.sendall(str(file_size).encode(FORMAT))
-                    msg=conn.recv(1024).decode(FORMAT)
+            elif msg == "download": #Trường hợp client yêu cầu download từ server
+                    conn.sendall("READY".encode(FORMAT)) #Thông báo sẵn sàng gửi file
+                    file_name=conn.recv(1024).decode(FORMAT) #Nhận tên file từ client
+                    file_path=path+"//"+file_name    #tìm đường dẫn của file trên server
+                    file_size = os.path.getsize(file_path) #lấy kích thước file
+                    conn.sendall(str(file_size).encode(FORMAT)) #Gửi kích thước file
+                    msg=conn.recv(1024).decode(FORMAT) #Nhận thông báo của client
                     print(msg)
-                    send_data(conn, file_name, file_size,save_path,folder_username)
+                    send_data(conn, file_name, file_size,save_path,folder_username) #Gửi file tới client
             elif msg=="get_list":
-                path = "D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//"+folder_username
-                dir_list = os.listdir(path)
+                path = "C://Users//tung1//source//repos//PythonApplication2//PythonApplication2//"+folder_username
+                dir_list = os.listdir(path) # Lấy danh sách các file trong thư mục
                 for item in dir_list:
                     print(item)
-                    conn.sendall(item.encode(FORMAT))
+                    conn.sendall(item.encode(FORMAT)) # Gửi tên các file tới client
                     conn.recv(1024)
-                conn.sendall("end_list".encode(FORMAT))
+                conn.sendall("end_list".encode(FORMAT)) # Gửi thông báo kết thúc danh sách tên file
             elif msg=="login":
-                conn.sendall("login".encode(FORMAT))
-                username=conn.recv(1024).decode(FORMAT)
+                conn.sendall("login".encode(FORMAT)) #thông bào sẵn sàng đăng nhập
+                username=conn.recv(1024).decode(FORMAT) #Nhận username từ client
                 conn.sendall("recv username".encode(FORMAT))
-                password=conn.recv(1024).decode(FORMAT)
+                password=conn.recv(1024).decode(FORMAT) #Nhận password từ client
                 if(check_account(username,password)==True):    
-                    conn.sendall("true".encode(FORMAT))
-                    folder_username=username
+                    conn.sendall("true".encode(FORMAT)) #Gửi tín hiệu nếu login đúng
+                    folder_username=username #Tạo thư mục cho người dùng
                     try:
                         os.mkdir(folder_username)
                         print(f"Directory '{folder_username}' created successfully.")
@@ -138,9 +142,9 @@ def handle_client(conn, addr):
                         print(f"An error occurred: {e}")
                     print(f"Client connected: {addr}")
                 else:
-                    conn.sendall("false".encode(FORMAT))
+                    conn.sendall("false".encode(FORMAT)) #Phản hồi nếu tài khoản không hợp lệ
             elif msg=="sign up":
-                conn.sendall("ready".encode(FORMAT))
+                conn.sendall("ready".encode(FORMAT)) #Gửi phản hồi sẵn sàng  tạo tài khoản mới
                 newusername=conn.recv(1024).decode(FORMAT)
                 conn.sendall("recv username".encode(FORMAT))
                 newpassword =conn.recv(1024).decode(FORMAT) 
@@ -151,7 +155,7 @@ def handle_client(conn, addr):
                     check_username=False
                     check_password=False
                     for line in file:
-                        accountdetails=line.strip() 
+                        accountdetails=line.strip()  # Đọc dữ liệu từ file tài khoản
                         accountdetails=accountdetails.split()
                         # Kiểm tra xem tên tài khoản đã tồn tại chưa
                         if newusername == accountdetails[0]:
@@ -179,26 +183,20 @@ def handle_client(conn, addr):
         conn.close()
         print(f"Client {addr} disconnected.")
 
-
-
-
-
-
-
 HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((HOST, SERVER_PORT))
-s.listen()
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Tạo một socket
+s.bind((HOST, SERVER_PORT)) #Liên kết socket với địa chỉ IP và PORT của máy chủ
+s.listen() #Lắng nghe kết nối từ client
 print("SERVER SIDE")
 print("server", HOST, SERVER_PORT)
 print("Waiting for client")
 
 try:
     while True:#vòng lặp để chấp nhận kết nối từ các client
-        conn, addr = s.accept()
+        conn, addr = s.accept() #Chấp nhận kết nối từ client
         print(f"Client {addr} connected.")
         
         # Tạo một luồng mới để xử lý client
