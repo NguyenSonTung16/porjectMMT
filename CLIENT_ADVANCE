@@ -5,7 +5,7 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
-HOST = "192.168.6.113"
+HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
 def upload_file(file_paths, socket, button_notice,upload_window):
@@ -109,42 +109,52 @@ def downloadfilecheck(username, socket):
     # Tạo cửa sổ mới cho tính năng download
     download_window = tk.Toplevel()
     download_window.title("Download File")
-    download_window.geometry("600x400")
-    #Tạo khung chính
-    main_frame=Frame(download_window)
-    main_frame.pack(fill=BOTH,expand=1)
-    #Tạo canvas chứa nội dung có thể cuộn
-    new_canvas=Canvas(main_frame)
-    new_canvas.pack(side=RIGHT,fill=BOTH,expand=1)
-    #thêm thanh cuốn
-    new_scrollbar=tk.Scrollbar(main_frame,orient=VERTICAL,command=new_canvas.yview) #Tạo thanh cuốn dọc
-    new_scrollbar.pack(side=RIGHT,fill=Y)#Đặt thanh cuốn ở bên phải với chiều cao bằng với cửa sổ
-    new_canvas.configure(yscrollcommand=new_scrollbar.set) # thiết lập để thanh cuốn đồng bộ với canvas
-    # Khi canvas thay đổi kích thước, cập nhật lại vùng cuộn của canvas
-    new_canvas.bind('<Configure>',lambda e: new_canvas.configure(scrollregion=new_canvas.bbox("all")))
-    second_frame=Frame(new_canvas) # Tạo frame con chứa các nút và thông báo
-    new_canvas.create_window((0,0),window=second_frame,anchor="center") # Đặt frame con ở giữa canvas 
+    window_width, window_height = 800, 600  # Kích thước cửa sổ
+    download_window.geometry(f"{window_width}x{window_height}")
 
+    # Tính vị trí lề trái cho các frame
+    frame_width = 400  # Kích thước chiều rộng của các frame
+    left_margin = (window_width - frame_width) // 2  # Lề trái trùng với lề giữa của cửa sổ
+
+    # Tạo khung chính
+    main_frame = Frame(download_window, width=frame_width, height=window_height)
+    main_frame.place(x=left_margin, y=0)
+
+    # Tạo canvas chứa nội dung có thể cuộn
+    new_canvas = Canvas(main_frame, width=frame_width, height=window_height)
+    new_canvas.pack(side=LEFT, fill=BOTH, expand=1)
+
+    # Tạo frame con chứa các nút và thông báo
+    second_frame = Frame(new_canvas, width=frame_width, height=window_height)
+    new_canvas.create_window((0, 0), window=second_frame, anchor="nw")
+    def on_mousewheel(event):
+        new_canvas.yview_scroll(-1 * int(event.delta / 120), "units")  # Cuộn với con lăn chuột
+
+    # Đăng ký sự kiện cuộn chuột
+    download_window.bind_all("<MouseWheel>", on_mousewheel)
+
+    # Khi canvas thay đổi kích thước, cập nhật lại vùng cuộn
+    new_canvas.bind('<Configure>', lambda e: new_canvas.configure(scrollregion=new_canvas.bbox("all")))
     # Gửi yêu cầu lấy danh sách file
     msg = "get_list"
     socket.sendall(msg.encode(FORMAT))
-    list_file = [] 
+    list_file = []
     item = socket.recv(1024).decode(FORMAT)
-    while(item != "end_list"):
+    while item != "end_list":
         list_file.append(item)
         socket.sendall(item.encode(FORMAT))
         item = socket.recv(1024).decode(FORMAT)
 
     # Tạo danh sách các nút và thông báo
     btn = []  # Danh sách các nút tải xuống
-    btnnotice = []  # Danh sách các nút thông báo tải xuống
+    btnnotice = []  # Danh sách các nhãn thông báo tải xuống
     for i in range(len(list_file)):
         btn.append("Button" + list_file[i])
         btnnotice.append("Button_notice" + list_file[i])
 
     # Thêm các label và nút vào trong frame
     for i in range(len(list_file)):
-         # Tạo label hiển thị tên file
+        # Tạo label hiển thị tên file
         label_filename = tk.Label(second_frame, text=list_file[i], font=("Arial", 16))
         label_filename.pack(pady=5)
 
@@ -153,12 +163,14 @@ def downloadfilecheck(username, socket):
         btnnotice[i].pack(pady=2)
 
         # Tạo button để tải xuống
-        btn[i] = tk.Button(second_frame, text="Download", font=("Arial", 14), command=lambda c=i: download_file(socket, list_file[c], btnnotice[c], download_window))
+        btn[i] = tk.Button(second_frame, text="Download", font=("Arial", 14),
+                           command=lambda c=i: download_file(socket, list_file[c], btnnotice[c], download_window))
         btn[i].pack(pady=5)
-    
+
     # Tạo nút đóng cửa sổ
     button_close = tk.Button(second_frame, text="Close", font=("Arial", 14), command=download_window.destroy)
     button_close.pack(pady=20)
+
   
 def connect_to_server(socket):
     try:
