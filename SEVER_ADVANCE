@@ -8,12 +8,14 @@ import threading
 from datetime import datetime
 # Hàm nhận tên file từ client
 def received_prop_filename(socket, file_name):
+    
     file_name = socket.recv(1024).decode(FORMAT)
     socket.sendall(f"Received file name: {file_name}".encode(FORMAT))
     print(f"Tên file nhận được: {file_name}")
     return file_name
 # Hàm nhận kích thước file từ client
 def received_prop_filesize(socket, file_size):
+    
     # Nhận kích thước file
     file_size = int(socket.recv(1024).decode(FORMAT))
     socket.sendall(f"Received file size: {file_size}".encode(FORMAT))
@@ -21,6 +23,7 @@ def received_prop_filesize(socket, file_size):
     return file_size
 # hàm kiểm tra xem file có tồn tại trên server không
 def check_exist_file_on_server(file_name,save_path,folder_username):
+    
     #check file da ton tai tren server chua
     file_name_check=save_path+folder_username+"//"+file_name
     print(file_name_check)
@@ -97,9 +100,12 @@ def handle_client(socket, addr):
        
         msg = None
         while msg != "end": #Vòng lặp cho đến khi client gửi end
+            
             msg = socket.recv(1024).decode(FORMAT) #Nhận yêu cầu từ server
             print(f"Client {addr} talk: {msg}")
+            
             if msg == "upload": #Trường hợp client yêu cầu upload file
+                
                 socket.sendall("Ready to recv file".encode(FORMAT)) #Gửi thông báo đã sẵn sàng nhận file từ client
                 Numfiles=int(socket.recv(1024).decode(FORMAT)) #Nhận số lượng file từ client
                 print(Numfiles)
@@ -107,30 +113,26 @@ def handle_client(socket, addr):
                 for i in range(Numfiles):    #Vòng lặp để tải tất cả các file
                     file_name = received_prop_filename(socket, file_name) #Nhận tên file
                     file_size = received_prop_filesize(socket, file_size) #Nhận kích thước file
-                    kiem_tra=check_exist_file_on_server(file_name,save_path,folder_username)
+                    kiem_tra=check_exist_file_on_server(file_name,save_path,folder_username) # kiểm tra coi file có trùng trên server không để thêm số đuôi
                     print(kiem_tra)
-                    if kiem_tra==1:
-                        print("1")
+                    if kiem_tra==1: # không bị trùng
                         received_data_server( socket, file_name, file_size,folder_username,save_path)
                         write_history("upload",folder_username,file_name,socket)  
                         
-                    elif kiem_tra==2:
-                        split=file_name.split(".")
-                        
-                        print("2")
+                    elif kiem_tra==2: #bị trùng
+                        split=file_name.split(".") #tách tên file để chèn số vào đuôi
                         k=1
-                        file_name_check=split[0]+"("+str(k)+")"+"."+split[1]
-                        print("2")
-                        while check_exist_file_on_server(file_name_check,save_path,folder_username)==2:
+                        file_name_check=split[0]+"("+str(k)+")"+"."+split[1] # cộng số vào đuôi
+                        while check_exist_file_on_server(file_name_check,save_path,folder_username)==2: # kiểm tra các số đuôi có bị trùng hay không
                             k=k+1
                             file_name_check=split[0]+"("+str(k)+")"+"."+split[1]
-                        
-                        received_data_server( socket, file_name_check, file_size,folder_username,save_path)
-                        write_history("upload",folder_username,file_name_check,socket)  
+                        received_data_server( socket, file_name_check, file_size,folder_username,save_path) # nhận byte từ clients
+                        write_history("upload",folder_username,file_name_check,socket) # viết lịch sử  
                         
                         
                         
             elif msg == "download": #Trường hợp client yêu cầu download từ server
+                    
                     socket.sendall("READY".encode(FORMAT)) #Thông báo sẵn sàng gửi file
                     file_name=socket.recv(1024).decode(FORMAT) #Nhận tên file từ client
                     file_path=path+"//"+file_name    #tìm đường dẫn của file trên server
@@ -138,9 +140,10 @@ def handle_client(socket, addr):
                     socket.sendall(str(file_size).encode(FORMAT)) #Gửi kích thước file
                     msg=socket.recv(1024).decode(FORMAT) #Nhận thông báo của client
                     print(msg)
-                    send_data(socket, file_name, file_size,save_path,folder_username)
-                    write_history("download",folder_username,file_name,socket)  #Gửi file tới client
+                    send_data(socket, file_name, file_size,save_path,folder_username)#Gửi file tới client
+                    write_history("download",folder_username,file_name,socket)  # Viết lịch sử
             elif msg=="get_list":
+                
                 path = save_path+folder_username
                 dir_list = os.listdir(path) # Lấy danh sách các file trong thư mục
                 for item in dir_list:
@@ -149,6 +152,7 @@ def handle_client(socket, addr):
                     socket.recv(1024)
                 socket.sendall("end_list".encode(FORMAT)) # Gửi thông báo kết thúc danh sách tên file
             elif msg=="login":
+                
                 socket.sendall("login".encode(FORMAT)) #thông bào sẵn sàng đăng nhập
                 username=socket.recv(1024).decode(FORMAT) #Nhận username từ client
                 socket.sendall("recv username".encode(FORMAT))
@@ -156,27 +160,25 @@ def handle_client(socket, addr):
                 if(check_account(username,password)==True):    
                     socket.sendall("true".encode(FORMAT)) #Gửi tín hiệu nếu login đúng
                     folder_username=username #Tạo thư mục cho người dùng
-                    try:
+                    try: #nếu ko có
                         os.mkdir(folder_username)
                         print(f"Directory '{folder_username}' created successfully.")
-                    except FileExistsError:
+                    except FileExistsError: # nếu có ffolder người dùng
                         print(f"Directory '{folder_username}' already exists.")
-                    except PermissionError:
+                    except PermissionError: #không thể tạo folder người dùng
                         print(f"Permission denied: Unable to create '{folder_username}'.")
                     except Exception as e:
                         print(f"An error occurred: {e}")
+                        
                     print(f"Client connected: {addr}")
-                    write_history("login",folder_username,file_name,socket)
+                    write_history("login",folder_username,file_name,socket) # viết lịch sử login
                 else:
                     socket.sendall("false".encode(FORMAT)) #Phản hồi nếu tài khoản không hợp lệ
             elif msg=="sign up":
                 socket.sendall("ready".encode(FORMAT)) #Gửi phản hồi sẵn sàng  tạo tài khoản mới
-                newusername=socket.recv(1024).decode(FORMAT)
+                newusername=socket.recv(1024).decode(FORMAT) #nhận newusername
                 socket.sendall("recv username".encode(FORMAT))
-                newpassword =socket.recv(1024).decode(FORMAT) 
-                print(newusername)
-                print(newpassword)
-                
+                newpassword =socket.recv(1024).decode(FORMAT) #nhận password
                 with open('account.txt','r') as file:
                     check_username=False
                     check_password=False
@@ -204,21 +206,28 @@ def handle_client(socket, addr):
                 file.close()
                                        
     except Exception as e:
+        
         print(f"Lỗi xử lý clienta {addr}: {e}")
+        
     finally:
-        write_history("disconnect",folder_username,file_name,socket)
+        
+        write_history("disconnect",folder_username,file_name,socket) # Viết lịch sử ngắt kết nối
         socket.close()
         print(f"Client {addr} disconnected.")
 def write_history(case,folder_username,file_name,socket):
-    # datetime object containing current date and time
+    # lấy thời gian hiện tại
     now = datetime.now()
-    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+    # biến date và time thành dạng string để ghi file
+    dt_string = now.strftime("%Y-%m-%d %H:%M:%S") 
+    #các trường hợp thao tác để viết lịch sử
     if(case=="login"):
+        
         with open("history.txt","a") as f:
             f.write(f"{dt_string}: "+folder_username)
             f.write(" connect to server\n ")
          
     elif case=="upload":
+        
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         with open("history.txt","a") as f:
             f.write(f"{dt_string}: ")
@@ -226,13 +235,16 @@ def write_history(case,folder_username,file_name,socket):
             f.write(f" upload file // {file_name} \n ")
         
     elif case=="dowload":
+         
          dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
          print("date and time =", dt_string)
          with open("history.txt","a") as f:
             f.write(f"{dt_string} :")
             f.write(folder_username)
             f.write(f" download file // {file_name}: ")
+            
     elif case=="disconnect":
+        
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         print("date and time =", dt_string)
         with open("history.txt","a") as f:
