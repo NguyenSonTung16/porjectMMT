@@ -5,7 +5,7 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
-HOST = "127.0.0.1"
+HOST = "192.168.6.113"
 SERVER_PORT = 65432
 FORMAT = "utf8"
 def upload_file(file_paths, socket, button_notice,upload_window):
@@ -44,7 +44,7 @@ def upload_file(file_paths, socket, button_notice,upload_window):
                         socket.sendall(chunk)
                         send += len(chunk)
                         percent = send / file_size * 100
-                        button_notice.config(text=f" {percent:.2f}%", fg="red")
+                        button_notice.config(text=f"{file_name} {percent:.2f}%", fg="red")
                         upload_window.update_idletasks()
                 print(f"Đã gửi file {file_name} thành công.")
                 # Đợi server xử lý xong file này trước khi gửi file tiếp theo
@@ -65,7 +65,7 @@ def uploadbuttoncheck(socket):
     # Tiêu đề cho cửa sổ upload
     label_upload = tk.Label(upload_window, text="Upload File", font=("Arial", 20))
     label_upload.pack(pady=20)
-    file_paths=filedialog.askopenfilenames(title="Chọn file",filetypes=(("All files", "*.*"),)) #Mở browse file để chọn file muốn upload
+    file_paths=filedialog.askopenfilenames(title="Chọn file") #Mở browse file để chọn file muốn upload
     for file_path in file_paths:
         file_name=os.path.basename(file_path) #lấy tên file muốn upload từ địa chỉ của file đó
         label_filepath = tk.Label(upload_window, text=file_name, font=("Arial", 16))
