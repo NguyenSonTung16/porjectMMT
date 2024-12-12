@@ -6,6 +6,7 @@ import os
 import string
 import threading
 from datetime import datetime
+from pathlib import Path
 # Hàm nhận tên file từ client
 def received_prop_filename(socket, file_name):
     
@@ -95,7 +96,7 @@ def handle_client(socket, addr):
     msg = ""
     file_name=None
     file_size=None
-    save_path = "D://Học Tập//Nhapmonlaptrinh//Thuc hanh//SERVER//SEVER_ADVANCE//" #Đường dẫn lưu trữ trên server
+    save_path = "D://SERVER//" #Đường dẫn lưu trữ trên server
     try:
        
         msg = None
@@ -161,12 +162,12 @@ def handle_client(socket, addr):
                     socket.sendall("true".encode(FORMAT)) #Gửi tín hiệu nếu login đúng
                     folder_username=username #Tạo thư mục cho người dùng
                     try: #nếu ko có
-                        os.mkdir(folder_username)
-                        print(f"Directory '{folder_username}' created successfully.")
+                        os.mkdir(save_path+folder_username)
+                        print(f"Directory '{save_path+folder_username}' created successfully.")
                     except FileExistsError: # nếu có ffolder người dùng
-                        print(f"Directory '{folder_username}' already exists.")
+                        print(f"Directory '{save_path+folder_username}' already exists.")
                     except PermissionError: #không thể tạo folder người dùng
-                        print(f"Permission denied: Unable to create '{folder_username}'.")
+                        print(f"Permission denied: Unable to create '{save_path+folder_username}'.")
                     except Exception as e:
                         print(f"An error occurred: {e}")
                         
@@ -256,9 +257,22 @@ HOST = "127.0.0.1"
 SERVER_PORT = 65432
 FORMAT = "utf8"
 
+specific_path = "D://SERVER"
+
+# Create the directory
+try:
+    os.mkdir(specific_path)
+    print(f"Directory '{specific_path}' created successfully.")
+except FileExistsError:
+    print(f"Directory '{specific_path}' already exists.")
+except PermissionError:
+    print(f"Permission denied: Unable to create '{specific_path}'.")
+except Exception as e:
+    print(f"An error occurred: {e}")
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Tạo một socket
 s.bind((HOST, SERVER_PORT)) #Liên kết socket với địa chỉ IP và PORT của máy chủ
 s.listen() #Lắng nghe kết nối từ client
+
 print("SERVER SIDE")
 print("server", HOST, SERVER_PORT)
 print("Waiting for client")
